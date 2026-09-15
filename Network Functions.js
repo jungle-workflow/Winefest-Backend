@@ -23,14 +23,14 @@ function doPost(e) {
   try {
     isSubmitted = logRaw(body, spreadsheetContext)
   } catch (error) {
-    isSubmitted = { contents, error }
-    logError(spreadsheetContext.rawSubmissionsSheet, [new Date.toISOString(), error, contents])
+    isSubmitted = { error: String(error) }
+    logError(spreadsheetContext.rawSubmissionsSheet, [new Date(), String(error), JSON.stringify(body)])
   }
   try {
     isLogged = updateCatalogue(body, spreadsheetContext)
   } catch (error) {
-    isLogged = { contents, error }
-    logError(spreadsheetContext.rawSubmissionsSheet, [new Date.toISOString(), error, contents])
+    isLogged = { error: String(error) }
+    logError(spreadsheetContext.rawSubmissionsSheet, [new Date(), String(error), JSON.stringify(body)])
   }
   // send a response back with the data that was supplied and a success indicator
   output = ContentService.createTextOutput(
@@ -91,12 +91,10 @@ function updateCatalogue(data = {
     "Booth_ID",
   ];
 
-  if (!header.some(function (key) {
+  const normalizedHeader = header.map(function (key) {
     const columnName = String(key).trim();
-    return columnName === "Booth_ID" || columnName === "Booth ID";
-  })) {
-    header.push("Booth_ID");
-  }
+    return /^Booth(?:[_ ]?(?:ID|#))$/i.test(columnName) ? "Booth_ID" : columnName;
+  });
 
   const catalogueMap = {};
 
@@ -108,7 +106,7 @@ function updateCatalogue(data = {
     }
 
     const rowObject = {};
-    header.forEach(function (key, idx) {
+    normalizedHeader.forEach(function (key, idx) {
       rowObject[key] = row[idx] !== undefined ? row[idx] : "";
     });
 
@@ -180,15 +178,15 @@ function updateCatalogue(data = {
   const finalRows = Object.values(catalogueMap).map(function (bottle) {
     const rowValues = {
       ...bottle,
-      "Submitter Email Address": data.formData && data.formData.email
-        ? data.formData.email
-        : bottle["Submitter Email Address"] || "",
-      Booth_ID: bottle.Booth_ID ?? "No Booth ID",
+      "Submitter Email Address": data.email
+        || (data.formData && data.formData.email)
+        || bottle["Submitter Email Address"] || "",
+      "Booth_ID": bottle["Booth_ID"] ?? "No Booth ID",
+      "Booth #": bottle["Booth #"] ?? "No Booth Num",
     };
 
     // Write by header name so Booth_ID cannot drift when columns are reordered.
-    return header.map(function (key) {
-      const columnName = String(key).trim() === "Booth ID" ? "Booth_ID" : String(key).trim();
+    return normalizedHeader.map(function (columnName) {
       return rowValues[columnName] !== undefined && rowValues[columnName] !== null
         ? rowValues[columnName]
         : "";

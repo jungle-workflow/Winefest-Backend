@@ -54,11 +54,11 @@ function logRaw(data, spreadsheetContext = getSpreadsheetContext()) {
 
 function updateCatalogue(data = {
   "action": "formSubmit",
-  "formData": { "email": "agreider@junglejims.com" },
+  "formData": { "email": "agreider@junglejims.com", "phone": "123-123-1234" },
   "submit_time": "2026-09-09T14:25:02.181Z",
   "changeLog": {
     "1111": {
-      "bottle": { "Created_Time": "2025-09-29T16:17:00.753Z", "Modified_Time": "2025-09-30T16:17:00.753Z", "Booth #": 1, "Booth_Name": "Tri-Vin Imports", "Wine_Name": "Goru Gold", "Price": 11.99, "Region": "Spain", "Is_VIP": "No", "Wine_ID": 1111, "Submitter Email Address": "tbockhold48@aol.com", "Distributor Name": "Euro Fine Wine", "Distributor Phone #": "Ego Bodegas", "Distributor Email": "tbockhold48@aol.com", "Winery Name": "Ego Bodegas", "Winery Phone #": 5136683086, "Winery Email": "tbockhold48@aol.com" },
+      "bottle": { "Created_Time": "2025-09-29T16:17:00.753Z", "Modified_Time": "2025-09-30T16:17:00.753Z", "Booth #": 1, "Booth_Name": "Tri-Vin Imports", "Wine_Name": "Goru Gold", "Price": 11.99, "Region": "Spain", "Is_VIP": "No", "Wine_ID": 1111, "Submitter_Email": "tbockhold48@aol.com", "Distributor Name": "Euro Fine Wine", "Distributor Phone #": "Ego Bodegas", "Distributor Email": "tbockhold48@aol.com", "Winery Name": "Ego Bodegas", "Winery Phone #": 5136683086, "Winery Email": "tbockhold48@aol.com" },
       "type": "DELETE"
     }
   }
@@ -70,31 +70,7 @@ function updateCatalogue(data = {
   const sheet = spreadsheetContext.wineCatalogueSheet || spreadsheetContext.spreadsheet.getSheetByName("Wine Catalogue");
 
   const values = spreadsheetContext.wineCatalogueValues || sheet.getDataRange().getValues();
-  const header = values.length ? values[0].slice() : [
-    "Created_Time",
-    "Modified_Time",
-    "Booth #",
-    "Booth_Name",
-    "Wine_Name",
-    "Price",
-    "Region",
-    "Is_VIP",
-    "Wine_ID",
-    "",
-    "Submitter Email Address",
-    "Distributor Name",
-    "Distributor Phone #",
-    "Distributor Email",
-    "Winery Name",
-    "Winery Phone #",
-    "Winery Email",
-    "Booth_ID",
-  ];
-
-  const normalizedHeader = header.map(function (key) {
-    const columnName = String(key).trim();
-    return /^Booth(?:[_ ]?(?:ID|#))$/i.test(columnName) ? "Booth_ID" : columnName;
-  });
+  const headers = values[0].slice()
 
   const catalogueMap = {};
 
@@ -106,7 +82,7 @@ function updateCatalogue(data = {
     }
 
     const rowObject = {};
-    normalizedHeader.forEach(function (key, idx) {
+    headers.forEach(function (key, idx) {
       rowObject[key] = row[idx] !== undefined ? row[idx] : "";
     });
 
@@ -178,25 +154,24 @@ function updateCatalogue(data = {
   const finalRows = Object.values(catalogueMap).map(function (bottle) {
     const rowValues = {
       ...bottle,
-      "Submitter Email Address": data.email
-        || (data.formData && data.formData.email)
-        || bottle["Submitter Email Address"] || "",
-      "Booth_ID": bottle["Booth_ID"] ?? "No Booth ID",
-      "Booth #": bottle["Booth #"] ?? "No Booth Num",
+      "Submitter_Email": bottle["Submitter_Email"] || data?.formData?.email || "",
+      "Submitter_Phone": bottle["Submitter_Phone"] || data?.formData?.phone || "",
+      "Booth_ID": bottle["Booth_ID"] ?? "",
+      "Booth #": bottle["Booth #"] ?? "",
     };
 
     // Write by header name so Booth_ID cannot drift when columns are reordered.
-    return normalizedHeader.map(function (columnName) {
+    return headers.map(function (columnName) {
       return rowValues[columnName] !== undefined && rowValues[columnName] !== null
         ? rowValues[columnName]
         : "";
     });
   });
 
-  const allRows = [header].concat(finalRows);
+  const allRows = [headers].concat(finalRows);
   const firstRow = 1;
   const numRows = allRows.length;
-  const numCols = header.length;
+  const numCols = headers.length;
 
   sheet.clearContents();
   sheet.getRange(firstRow, 1, numRows, numCols).setValues(allRows);

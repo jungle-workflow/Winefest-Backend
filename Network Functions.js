@@ -111,10 +111,35 @@ function updateCatalogue(data = {
     return false;
   }
 
-  // Apply each incoming change to the map, honoring DELETE before newer CHANGE entries.
+  // Apply each incoming change to the map, honoring BOOTH and DELETE before newer CHANGE or ADD entries.
   changeEntries.forEach(function (entry) {
     const bottle = entry && entry.bottle ? entry.bottle : {};
-    const type = (entry && entry.type) ? String(entry.type).toUpperCase() : "CHANGE";
+    const type = entry.type
+
+    if (type === "BOOTH") {
+      // change the Booth # of all bottles with a booth ID matching the incoming entry booth ID (key is "ID"). Booth ID should NEVER change. 
+  
+      const booth = entry.booth || {};
+      const boothId = booth.ID;
+      const boothNumber = booth.number;
+
+      if (boothId === undefined || boothId === null || boothId === "" || boothNumber === undefined || boothNumber === null) {
+        return;
+      }
+
+      console.log(`Changing the booth number to ${boothNumber} of bottles with booth ID matching: ${boothId}`);
+      Object.values(catalogueMap).forEach(function (catalogueBottle) {
+        if (String(catalogueBottle.Booth_ID) === String(boothId)) {
+          catalogueBottle["Booth #"] = boothNumber;
+        }
+      });
+
+      for (bottle of catalogueMap) {
+        
+      }
+      return;
+    }
+
     const wineId = bottle.Wine_ID;
     if (wineId === undefined || wineId === null || wineId === "") {
       return;

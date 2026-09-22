@@ -133,10 +133,6 @@ function updateCatalogue(data = {
           catalogueBottle["Booth #"] = boothNumber;
         }
       });
-
-      for (bottle of catalogueMap) {
-        
-      }
       return;
     }
 

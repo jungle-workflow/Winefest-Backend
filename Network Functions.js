@@ -2,8 +2,10 @@ function getSpreadsheetContext() {
   const spreadsheet = SpreadsheetApp.openById("1bBtgm6DoGjQP7IdzmSLtnTCor5FypMWRotrcclef9iY");
   return {
     spreadsheet,
-    rawSubmissionsSheet: spreadsheet.getSheetByName("Raw Vendor Submissions"),
-    rawSubmissionsValues: spreadsheet.getSheetByName("Raw Vendor Submissions").getDataRange().getValues(),
+    rawVendorsSheet: spreadsheet.getSheetByName("Raw Vendor Submissions"),
+    rawVendorsValues: spreadsheet.getSheetByName("Raw Vendor Submissions").getDataRange().getValues(),
+    rawOrdersSheet: spreadsheet.getSheetByName("Raw Buyer Orders"),
+    rawOrdersValues: spreadsheet.getSheetByName("Raw Buyer Orders").getDataRange().getValues(),
     wineCatalogueSheet: spreadsheet.getSheetByName("Wine Catalogue"),
     wineCatalogueValues: spreadsheet.getSheetByName("Wine Catalogue").getDataRange().getValues()
   };
@@ -20,10 +22,10 @@ function doPost(e) {
   const action = body.action
   const spreadsheetContext = getSpreadsheetContext();
   let output, isSubmitted, isLogged
-  let data = "hello world";
+  let data = {};
 
   if (action == routes.orderWine) { // buyers club
-
+    logRaw({ body }, spreadsheetContext.rawOrdersSheet)
   }
 
   if (action == routes.getBoothByNum) { // buyers club / get data of specific booth by num
@@ -42,16 +44,16 @@ function doPost(e) {
 
   if (action === routes.registerWine) { // vendor form
     try {
-      isSubmitted = logRaw(body, spreadsheetContext)
+      isSubmitted = logRaw(body, spreadsheetContext.rawVendorsSheet)
     } catch (error) {
       isSubmitted = { error: String(error) }
-      logError(spreadsheetContext.rawSubmissionsSheet, [new Date(), String(error), JSON.stringify(body)])
+      logError(spreadsheetContext.rawVendorsSheet, [new Date(), String(error), JSON.stringify(body)])
     }
     try {
       isLogged = updateCatalogue(body, spreadsheetContext)
     } catch (error) {
       isLogged = { error: String(error) }
-      logError(spreadsheetContext.rawSubmissionsSheet, [new Date(), String(error), JSON.stringify(body)])
+      logError(spreadsheetContext.rawVendorsSheet, [new Date(), String(error), JSON.stringify(body)])
     }
     // send a response back with the data that was supplied and a success indicator
     output = ContentService.createTextOutput(
@@ -66,9 +68,8 @@ function doPost(e) {
 
 
 
-function logRaw(data, spreadsheetContext = getSpreadsheetContext()) {
+function logRaw(data, sheet) {
   try {
-    const sheet = spreadsheetContext.rawSubmissionsSheet || spreadsheetContext.spreadsheet.getSheetByName("Raw Vendor Submissions");
     sheet.appendRow([
       new Date(),
       JSON.stringify(data)]);

@@ -47,7 +47,7 @@ function populateContactInfo() {
 
   // Reuse the shared spreadsheet context helper from Network Functions.
   const spreadsheetContext = getSpreadsheetContext();
-  const rawSheet = spreadsheetContext.rawSubmissionsSheet;
+  const rawSheet = spreadsheetContext.rawVendorsSheet;
   const catalogSheet = spreadsheetContext.wineCatalogueSheet;
 
   // Pull the current sheet contents so we can look up the relevant columns.

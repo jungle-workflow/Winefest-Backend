@@ -139,10 +139,13 @@ function onOpen() {
 }
 
 function publishWines() {
-  const content = toJSON(false)
+  const sheet = SpreadsheetApp.getActive().getSheetByName('Wine Catalogue');
+  const [headers, ...rows] = sheet.getDataRange().getValues();
+  const wines = rows.map(r => Object.fromEntries(headers.map((h, i) => [h, r[i]])));
+  const content = Utilities.base64Encode(JSON.stringify(wines), Utilities.Charset.UTF_8);
 
   const props = PropertiesService.getScriptProperties();
-  const url = 'https://api.github.com/repos/youruser/yourrepo/contents/wines.json';
+  const url = 'https://api.github.com/repos/jungle-workflow/Winefest-Backend/contents/catalogue.json';
   const headersAuth = { Authorization: 'Bearer ' + props.getProperty('GH_TOKEN') };
 
   // GitHub needs the existing file's SHA to overwrite it
@@ -157,5 +160,5 @@ function publishWines() {
   });
 
   // Clear the CDN cache
-  UrlFetchApp.fetch('https://purge.jsdelivr.net/gh/youruser/yourrepo@main/wines.json');
+  UrlFetchApp.fetch('https://purge.jsdelivr.net/gh/jungle-workflow/Winefest-Backend@main/catalogue.json');
 }

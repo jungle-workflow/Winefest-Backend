@@ -139,26 +139,52 @@ function onOpen() {
 }
 
 function publishWines() {
-  const sheet = SpreadsheetApp.getActive().getSheetByName('Wine Catalogue');
-  const [headers, ...rows] = sheet.getDataRange().getValues();
-  const wines = rows.map(r => Object.fromEntries(headers.map((h, i) => [h, r[i]])));
-  const content = Utilities.base64Encode(JSON.stringify(wines), Utilities.Charset.UTF_8);
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) throw new Error('Another publish is running');
 
-  const props = PropertiesService.getScriptProperties();
-  const url = 'https://api.github.com/repos/jungle-workflow/Winefest-Backend/contents/catalogue.json';
-  const headersAuth = { Authorization: 'Bearer ' + props.getProperty('GH_TOKEN') };
+  try {
+    const json = toJSON(false);
+    // Make sure we have a string, then Base64 encode as UTF-8
+    const text = typeof json === 'string' ? json : JSON.stringify(json);
+    const content = Utilities.base64Encode(text, Utilities.Charset.UTF_8);
 
-  // GitHub needs the existing file's SHA to overwrite it
-  const existing = UrlFetchApp.fetch(url, { headers: headersAuth, muteHttpExceptions: true });
-  const sha = existing.getResponseCode() === 200 ? JSON.parse(existing.getContentText()).sha : undefined;
+    const token = PropertiesService.getScriptProperties().getProperty('GH_TOKEN');
+    const url = 'https://api.github.com/repos/jungle-workflow/Winefest-Backend/contents/catalogue.json';
+    const headers = {
+      Authorization: 'Bearer ' + token,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    };
 
-  UrlFetchApp.fetch(url, {
-    method: 'put',
-    headers: headersAuth,
-    contentType: 'application/json',
-    payload: JSON.stringify({ message: 'Update wines', content, sha }),
-  });
+    // Get the existing file's SHA (required to overwrite)
+    const existing = UrlFetchApp.fetch(url, { headers, muteHttpExceptions: true });
+    const code = existing.getResponseCode();
+    let sha;
+    if (code === 200) {
+      sha = JSON.parse(existing.getContentText()).sha;
+    } else if (code !== 404) {
+      throw new Error('GitHub GET failed: ' + code + ' ' + existing.getContentText());
+    }
 
-  // Clear the CDN cache
-  UrlFetchApp.fetch('https://purge.jsdelivr.net/gh/jungle-workflow/Winefest-Backend@main/catalogue.json');
+    const put = UrlFetchApp.fetch(url, {
+      method: 'put',
+      headers,
+      contentType: 'application/json',
+      payload: JSON.stringify({ message: 'Update catalogue', content, sha }),
+      muteHttpExceptions: true,
+    });
+    const putCode = put.getResponseCode();
+    if (putCode !== 200 && putCode !== 201) {
+      throw new Error('GitHub PUT failed: ' + putCode + ' ' + put.getContentText());
+    }
+
+    // Clear the CDN cache (check the response while testing)
+    const purge = UrlFetchApp.fetch(
+      'https://purge.jsdelivr.net/gh/jungle-workflow/Winefest-Backend@main/catalogue.json',
+      { muteHttpExceptions: true }
+    );
+    Logger.log('Purge: ' + purge.getResponseCode() + ' ' + purge.getContentText());
+  } finally {
+    lock.releaseLock();
+  }
 }

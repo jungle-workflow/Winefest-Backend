@@ -10,34 +10,61 @@ function getSpreadsheetContext() {
 }
 
 // SERVE UP DATA
-function doGet(e) {
+function doGet() {
   return serveData("Wine Catalogue")
 }
 
 // RECEIVE SUBMISSION AND WRITE TO SPREADSHEET
 function doPost(e) {
   const body = JSON.parse(e.postData.contents);
+  const action = body.action
   const spreadsheetContext = getSpreadsheetContext();
-  let output, isSubmitted, isLogged;
+  let output, isSubmitted, isLogged
+  let data = "hello world";
 
-  try {
-    isSubmitted = logRaw(body, spreadsheetContext)
-  } catch (error) {
-    isSubmitted = { error: String(error) }
-    logError(spreadsheetContext.rawSubmissionsSheet, [new Date(), String(error), JSON.stringify(body)])
+  if (action == routes.orderWine) { // buyers club
+
   }
-  try {
-    isLogged = updateCatalogue(body, spreadsheetContext)
-  } catch (error) {
-    isLogged = { error: String(error) }
-    logError(spreadsheetContext.rawSubmissionsSheet, [new Date(), String(error), JSON.stringify(body)])
+
+  if (action == routes.getBoothByNum) { // buyers club / get data of specific booth by num
+
+    const wines = getWinesByNum(body.boothNum);
+    data = wines.length ? wines : { data: "No Booth" };
+
+
+    output = ContentService.createTextOutput(
+      JSON.stringify({ data, eventObject: e })
+    );
+    output.setMimeType(ContentService.MimeType.JSON);
+    //logRaw({ body, data, dummy: "hello world" }, spreadsheetContext)
+    return output;
   }
-  // send a response back with the data that was supplied and a success indicator
-  output = ContentService.createTextOutput(
-    JSON.stringify({ isSubmitted, isLogged, eventObject: e })
-  );
-  output.setMimeType(ContentService.MimeType.JSON);
+
+  if (action === routes.registerWine) { // vendor form
+    try {
+      isSubmitted = logRaw(body, spreadsheetContext)
+    } catch (error) {
+      isSubmitted = { error: String(error) }
+      logError(spreadsheetContext.rawSubmissionsSheet, [new Date(), String(error), JSON.stringify(body)])
+    }
+    try {
+      isLogged = updateCatalogue(body, spreadsheetContext)
+    } catch (error) {
+      isLogged = { error: String(error) }
+      logError(spreadsheetContext.rawSubmissionsSheet, [new Date(), String(error), JSON.stringify(body)])
+    }
+    // send a response back with the data that was supplied and a success indicator
+    output = ContentService.createTextOutput(
+      JSON.stringify({ isSubmitted, isLogged, eventObject: e })
+    );
+    output.setMimeType(ContentService.MimeType.JSON);
+  }
+
 }
+
+
+
+
 
 function logRaw(data, spreadsheetContext = getSpreadsheetContext()) {
   try {
@@ -118,7 +145,7 @@ function updateCatalogue(data = {
 
     if (type === "BOOTH") {
       // change the Booth # of all bottles with a booth ID matching the incoming entry booth ID (key is "ID"). Booth ID should NEVER change. 
-  
+
       const booth = entry.booth || {};
       const boothId = booth.ID;
       const boothNumber = booth.number;

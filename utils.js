@@ -128,3 +128,34 @@ function getWinesByNum(boothNum = "10") {
   const catalogue = toJSON(false, "Wine Catalogue");
   return catalogue.filter((wine) => String(wine["Booth #"]) === String(boothNum));
 }
+
+
+
+function onOpen() {
+    const ui = SpreadsheetApp.getUi();
+    ui.createMenu('Wine Catalogue Functions')
+        .addItem('Publish Catalogue to Github', 'publishWines')
+        .addToUi();
+}
+
+function publishWines() {
+  const content = toJSON(false)
+
+  const props = PropertiesService.getScriptProperties();
+  const url = 'https://api.github.com/repos/youruser/yourrepo/contents/wines.json';
+  const headersAuth = { Authorization: 'Bearer ' + props.getProperty('GH_TOKEN') };
+
+  // GitHub needs the existing file's SHA to overwrite it
+  const existing = UrlFetchApp.fetch(url, { headers: headersAuth, muteHttpExceptions: true });
+  const sha = existing.getResponseCode() === 200 ? JSON.parse(existing.getContentText()).sha : undefined;
+
+  UrlFetchApp.fetch(url, {
+    method: 'put',
+    headers: headersAuth,
+    contentType: 'application/json',
+    payload: JSON.stringify({ message: 'Update wines', content, sha }),
+  });
+
+  // Clear the CDN cache
+  UrlFetchApp.fetch('https://purge.jsdelivr.net/gh/youruser/yourrepo@main/wines.json');
+}

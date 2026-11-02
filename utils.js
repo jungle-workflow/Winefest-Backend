@@ -121,7 +121,8 @@ function populateContactInfo() {
 const routes = {
   registerWine: "formSubmit",
   getBoothByNum: "getBoothByNum",
-  orderWine: "buyerFormSubmit"
+  orderWine: "buyerFormSubmit",
+  viewCart: "viewCart"
 }
 
 function getWinesByNum(boothNum = "10") {
@@ -129,13 +130,59 @@ function getWinesByNum(boothNum = "10") {
   return catalogue.filter((wine) => String(wine["Booth #"]) === String(boothNum));
 }
 
+function getBuyerCart(
+  requestingBuyer = { "name": "Aaron G", "buyerId": "aar-g-998", "store": "Fairfield", "email": "aaron.greider@gmail.com", "phone": "998" },
+) {
+  if (!requestingBuyer || requestingBuyer.buyerId == null) {
+    throw new Error("getBuyerCart requires a buyerId");
+  }
+
+  const allOrders = toJSON(false, "Raw Buyer Orders");
+  const buyerOrders = {}
+
+  for (const order of allOrders) {
+    // check if it is a order that is valid and should be evaluated, then flatten the wines in the order to the buyer's collection of orders
+    const orderData = order.Data;
+    if (!orderData) {
+      continue;
+    }
+
+    const orderParsed = JSON.parse(orderData);
+    const body = orderParsed && orderParsed.body;
+
+    if (!body || body.action !== routes.orderWine) {
+      continue;
+    }
+
+    const buyerId = body.buyer && body.buyer.buyerId;
+    if (buyerId !== requestingBuyer.buyerId) {
+      continue;
+    }
+
+    const selectedWines = body.order && body.order.selectedWines;
+
+    for (const wine of selectedWines) {
+      console.log("valid wine:", wine)
+      // if wine has been added already, increment, if not, add the wine as is (already features quantity)
+      const existingWine = buyerOrders[wine.Wine_ID];
+      if (existingWine) {
+        existingWine.quantity = Number(existingWine.quantity) + Number(wine.quantity);
+      } else {
+        buyerOrders[wine.Wine_ID] = { ...wine };
+      }
+    }
+  }
+console.log(buyerOrders)
+  return buyerOrders;
+}
+
 
 
 function onOpen() {
-    const ui = SpreadsheetApp.getUi();
-    ui.createMenu('Wine Catalogue Functions')
-        .addItem('Publish Catalogue to Github', 'publishWines')
-        .addToUi();
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('Wine Catalogue Functions')
+    .addItem('Publish Catalogue to Github', 'publishWines')
+    .addToUi();
 }
 
 function publishWines() {

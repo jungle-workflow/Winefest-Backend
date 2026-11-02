@@ -22,10 +22,25 @@ function doPost(e) {
   const action = body.action
   const spreadsheetContext = getSpreadsheetContext();
   let output, isSubmitted, isLogged
-  let data = {};
+  let data = {default: "default"};
 
   if (action == routes.orderWine) { // buyers club
     logRaw({ body }, spreadsheetContext.rawOrdersSheet)
+
+    output = ContentService.createTextOutput(
+      JSON.stringify({ "submit": "success", eventObject: e })
+    );
+    output.setMimeType(ContentService.MimeType.JSON);
+    return output;
+  }
+  
+  if (action == routes.viewCart) { // view buyer cart
+    const cart = getBuyerCart(body.buyer)
+    output = ContentService.createTextOutput(
+      JSON.stringify({ cart, eventObject: e })
+    );
+    output.setMimeType(ContentService.MimeType.JSON);
+    return output;
   }
 
   if (action == routes.getBoothByNum) { // buyers club / get data of specific booth by num
